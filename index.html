@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; img-src 'self' data: blob: https://ik.imagekit.io https://*.googleusercontent.com; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#17304f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Maitri">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="app.css">
+<title>Maitri</title>
+</head>
+<body>
+<div id="app">
+  <header id="bar"><button id="back" hidden aria-label="Back">&#8249;</button><h1 id="title">Maitri</h1><span id="sync"></span><button id="refresh" hidden aria-label="Refresh">&#8635;</button><button id="who" hidden aria-label="Account"></button></header>
+  <div id="busy"></div>
+  <section id="gate" hidden><img src="icons/icon-192.png" alt=""><h2>Maitri</h2><p id="gmsg"></p><div id="gbtn"></div></section>
+  <main id="view"><div class="skel"></div><div class="skel"></div><div class="skel"></div></main>
+  <nav id="nav"></nav>
+  <div id="toast" hidden></div>
+  <div id="sheet" hidden></div>
+</div>
+<script src="config.js"></script>
+<script src="shell.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</body>
+</html>
