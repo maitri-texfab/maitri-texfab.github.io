@@ -1,9 +1,9 @@
 // The Maitri company app: what it is made of. Screens only: nothing here is secret. The sign-in Client ID is public by
 // design (there is no client secret), and an engine's address answers nobody without a Google ID token of a maitri.in account.
-// A new department = one line in `modules` and its file under modules/. dc3002f · 13 Oct 26 16:46 and the engine addresses are written in
+// A new department = one line in `modules` and its file under modules/. 4891fd5 · 15 Oct 26 18:13 and the engine addresses are written in
 // when the site is built (scripts/make-app-site.sh).
 window.MAITRI_CONFIG = {
-  version: 'dc3002f · 13 Oct 26 16:46',
+  version: '4891fd5 · 15 Oct 26 18:13',
   clientId: '450946631995-tvnhp1ug4f1ut5ojombndkg6l11sodt4.apps.googleusercontent.com',
   domain: 'maitri.in',
   modules: [

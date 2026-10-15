@@ -46,6 +46,14 @@
     gisReady = true; if (!$('gate').hidden) button(); };
   function signOut() { TOKEN = null; MODS.forEach(function (m) { if (m.forget) m.forget(); }); if (gisReady) google.accounts.id.disableAutoSelect(); location.reload(); }
 
+  // The grey line (the owner's only): the whole call on the phone, and inside it the engine's door, from doPost's start to its end,
+  // with the call itself ("server") inside that. "before" is from pressing to the door opening: the trip there, Google's own
+  // start of the script, and "load", Google running the project's code; "after" is from the door closing to the phone having
+  // the answer: Google's redirect and the trip back. before and after are read against the phone's clock, so a phone clock
+  // that is off moves time from one to the other; their sum is right.
+  function timing(name, t0, t1, x) { var s = function (ms) { return (ms / 1000).toFixed(1) + ' s'; }, line = String(name).replace(/^app/, '') + ' ' + s(t1 - t0);
+    if (!x.door) return line + ' (server ' + s(Number(x.ms)) + ')';
+    return line + ' = before ' + s(x.door[0] - t0) + (x.load >= 100 ? ' (load ' + s(x.load) + ')' : '') + ' + door ' + s(x.door[1] - x.door[0]) + ' (server ' + s(Number(x.ms)) + ') + after ' + s(t1 - x.door[1]); }
   // ---- an engine: one address per department, every call with the token ----
   function api(endpoint) { return function (name, arg) { return new Promise(function (ok, bad) {
     if (!fresh()) { TOKEN = null; gate('Your sign-in has run out. Sign in again.', false); return bad(new Error('Your sign-in has run out. Sign in again, then press the button again.')); }
@@ -53,7 +61,7 @@
     fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: TOKEN.jwt, name: name, arg: arg }), redirect: 'follow', credentials: 'omit', cache: 'no-store' })
       .then(function (res) { if (!res.ok) throw new Error('The server answered ' + res.status + '. Try again.'); return res.json(); })
       .then(function (x) { flying--; mark();
-        if (x && x.ok) { lastPerf = String(name).replace(/^app/, '') + ' ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s (server ' + (Number(x.ms) / 1000).toFixed(1) + ' s)'; perf(); return ok(x.r); }
+        if (x && x.ok) { lastPerf = timing(name, t0, Date.now(), x); perf(); return ok(x.r); }
         if (x && x.code === 'auth') { TOKEN = null; gate(x.error, true); }
         bad(new Error(x && x.error || 'The server gave no answer. Try again.')); },
       function (e) { flying--; mark(); bad(new Error(/fetch|network|load failed/i.test(String(e && e.message)) ? 'No connection to the server. Check the internet, then press the button again.' : String(e && e.message || e))); }); }); }; }
