@@ -24,7 +24,7 @@
     call(name, arg).then(function (r) { btn.disabled = false; btn.innerHTML = was; then(r); }, function (e) { btn.disabled = false; btn.innerHTML = was; toast(e.message, true); }); }
   /** Something sent in the background: said at once, said again when it is saved, and said loudly if it was not. */
   function send(what, call, name, arg, done, failed) { sync('Saving…'); toast('Saving ' + what + '…');
-    call(name, arg).then(function (r) { sync(flying ? 'Saving…' : 'Saved ✓'); setTimeout(function () { if (!flying) sync(''); }, 2500); toast(what + ' saved ✓'); if (done) done(r); },
+    call(name, arg).then(function (r) { sync(flying ? 'Saving…' : 'Saved ✓'); setTimeout(function () { if (!flying) sync(''); }, 2500); toast(r && r.queued ? r.note : what + ' saved ✓'); if (done) done(r); },
       function (e) { sync(''); toast(what + ' was NOT saved: ' + e.message, true); if (failed) failed(e); }); }
 
   // ---- sign-in: Google's own prompt and button; the token lives in this page's memory and nowhere else ----
@@ -44,7 +44,26 @@
   window.onGoogleLibraryLoad = function () {
     google.accounts.id.initialize({ client_id: CFG.clientId, callback: onCredential, auto_select: true, cancel_on_tap_outside: false, use_fedcm_for_prompt: true, hd: CFG.domain });
     gisReady = true; if (!$('gate').hidden) button(); };
-  function signOut() { TOKEN = null; MODS.forEach(function (m) { if (m.forget) m.forget(); }); if (gisReady) google.accounts.id.disableAutoSelect(); location.reload(); }
+  function signOut() { TOKEN = null; MODS.forEach(function (m) { try { if (m.forget) m.forget(); } catch (e) { console.error('Maitri app: module ' + m.id + ' could not forget: ' + String(e && e.message || e)); } }); if (gisReady) google.accounts.id.disableAutoSelect(); location.reload(); }
+
+  // ---- a module that fails stays inside its own tabs (Admin 2, 10 Nov 2026) ----
+  // Every call from the frame into a module goes through guard(). A module whose code throws (tabs, count, draw, menu and a menu
+  // line's run, forget, or start() throwing before it gives a promise) is marked broken until the app is opened again: its tabs show
+  // one card, one toast says so, the error goes to the console only, and every other module draws as before. A start() whose promise
+  // is refused (a slow engine or no network at opening, amendment of 10 Nov) is not broken: its message is toasted and Refresh tries again.
+  var BROKEN = {}, NOTE = 'This section could not load. The rest of the app works.', WARN = '<path d="M12 3 2.5 20h19L12 3z"/><path d="M12 10v4.5M12 17.3v.2"/>';
+  function broke(m, what, e) { if (BROKEN[m.id]) return; BROKEN[m.id] = what;
+    console.error('Maitri app: module ' + m.id + ' failed in ' + what + ': ' + String(e && e.message || e)); toast(NOTE, true); }
+  function guard(m, what, fn, dflt) { if (BROKEN[m.id]) return dflt; try { return fn(); } catch (e) { broke(m, what, e); return dflt; } }
+  function brokenCard() { $('view').innerHTML = '<div class="card">' + NOTE + '</div>'; }
+  /** One module's tabs, each call guarded. A broken module keeps the tabs it last showed (or one tab under its name), and each draws the card. */
+  function modTabs(m) { var t = guard(m, 'tabs', function () { var r = m.tabs() || []; if (!Array.isArray(r)) throw new Error('tabs() did not give a list'); return r; }, null);
+    if (t) { m.shown = t.map(function (x) { return { id: x.id, name: x.name, title: x.title, icon: x.icon }; });
+      return t.map(function (x) { return { id: m.id + '.' + x.id, name: x.name, title: x.title || x.name, icon: x.icon, count: x.count ? function () { return guard(m, 'count', function () { return Number(x.count()) || 0; }, 0); } : null,
+        draw: function () { if (!guard(m, 'draw', function () { x.draw(); return true; }, false)) { brokenCard(); nav(); } } }; }); }
+    return (m.shown && m.shown.length ? m.shown : [{ id: 'broken', name: m.name || m.id, title: m.name || m.id, icon: WARN }]).map(function (x) {
+      return { id: m.id + '.' + x.id, name: x.name, title: x.title || x.name, icon: x.icon || WARN, count: null, draw: brokenCard }; }); }
+  function redraw() { if (!PAGE) go(); else nav(); }
 
   // The grey line (the owner's only): the whole call on the phone, and inside it the engine's door, from doPost's start to its end,
   // with the call itself ("server") inside that. "before" is from pressing to the door opening: the trip there, Google's own
@@ -61,28 +80,30 @@
     fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ token: TOKEN.jwt, name: name, arg: arg }), redirect: 'follow', credentials: 'omit', cache: 'no-store' })
       .then(function (res) { if (!res.ok) throw new Error('The server answered ' + res.status + '. Try again.'); return res.json(); })
       .then(function (x) { flying--; mark();
-        if (x && x.ok) { lastPerf = timing(name, t0, Date.now(), x); perf(); return ok(x.r); }
+        if (x && x.ok) { lastPerf = timing(name, t0, Date.now(), x); perf(); if (x.r && x.r.queued && x.r.note) setTimeout(function () { toast(x.r.note); }, 60); return ok(x.r); }
         if (x && x.code === 'auth') { TOKEN = null; gate(x.error, true); }
         bad(new Error(x && x.error || 'The server gave no answer. Try again.')); },
       function (e) { flying--; mark(); bad(new Error(/fetch|network|load failed/i.test(String(e && e.message)) ? 'No connection to the server. Check the internet, then press the button again.' : String(e && e.message || e))); }); }); }; }
 
   // ---- the frame: title bar, bottom bar, pages that open over a tab ----
-  function tabs() { var t = []; MODS.forEach(function (m) { (m.tabs() || []).forEach(function (x) { t.push({ id: m.id + '.' + x.id, name: x.name, title: x.title || x.name, icon: x.icon, count: x.count, draw: x.draw }); }); }); return t; }
+  function tabs() { var t = []; MODS.forEach(function (m) { modTabs(m).forEach(function (x) { t.push(x); }); }); return t; }
   function nav() { var t = tabs(); $('nav').innerHTML = t.map(function (x) { var n = x.count ? x.count() : 0; return '<button data-tab="' + h(x.id) + '"' + (x.id === TAB ? ' class="on"' : '') + '><svg viewBox="0 0 24 24">' + x.icon + '</svg>' + h(x.name) + (n ? '<span class="badge">' + n + '</span>' : '') + '</button>'; }).join('');
     all('#nav button').forEach(function (b) { b.onclick = function () { go(b.getAttribute('data-tab')); }; }); }
   function go(id) { var t = tabs(); if (!t.length) { $('nav').innerHTML = ''; $('title').textContent = 'Maitri'; $('view').innerHTML = '<div class="card">Your account (' + h(TOKEN ? TOKEN.email : '') + ') has no access to this app yet. Ask MIS to add you.</div>'; return; }
     var x = t.filter(function (q) { return q.id === (id || TAB); })[0] || t[0]; TAB = x.id; PAGE = null; $('back').hidden = true; $('nav').hidden = false; $('title').textContent = x.title; nav(); $('view').scrollTop = 0; x.draw(); perf(); }
   function page(title, html, mount) { PAGE = title; $('title').textContent = title; $('back').hidden = false; $('nav').hidden = true; $('view').innerHTML = html; $('view').scrollTop = 0; if (mount) mount(); }
-  function sheet() { var extra = []; MODS.forEach(function (m) { (m.menu ? m.menu() : []).forEach(function (x) { extra.push(x); }); });
+  function sheet() { var extra = []; MODS.forEach(function (m) { guard(m, 'menu', function () { var r = m.menu ? m.menu() || [] : []; if (!Array.isArray(r)) throw new Error('menu() did not give a list'); return r; }, []).forEach(function (x) { extra.push({ label: x.label, run: x.run, m: m }); }); });
     $('sheet').innerHTML = '<div><h2>' + h(TOKEN ? TOKEN.email : '') + '</h2><p class="muted">Maitri app · ' + h(CFG.version) + '</p>' + extra.map(function (x, i) { return '<button class="btn light" data-x="' + i + '">' + h(x.label) + '</button>'; }).join('') + '<button class="btn light" id="s_upd">Check for a new version</button><button class="btn light" id="s_out">Sign out</button><button class="btn" id="s_close">Close</button></div>'; $('sheet').hidden = false;
-    all('#sheet [data-x]').forEach(function (b) { b.onclick = function () { $('sheet').hidden = true; extra[Number(b.getAttribute('data-x'))].run(); }; });
+    all('#sheet [data-x]').forEach(function (b) { b.onclick = function () { $('sheet').hidden = true; var x = extra[Number(b.getAttribute('data-x'))]; guard(x.m, 'menu', function () { x.run(); }); if (BROKEN[x.m.id]) redraw(); }; });
     $('s_close').onclick = function () { $('sheet').hidden = true; }; $('s_out').onclick = signOut;
     $('s_upd').onclick = function () { var b = this; b.disabled = true; b.textContent = 'Checking…'; (swReg ? swReg.update() : Promise.resolve()).then(function () { location.reload(); }, function () { location.reload(); }); }; }
   $('back').onclick = function () { go(); };
   $('who').onclick = sheet;
   $('sheet').onclick = function (e) { if (e.target === this) this.hidden = true; };
   $('toast').onclick = function () { this.hidden = true; };
-  $('refresh').onclick = function () { if (PAGE) return toast('Go back first, then refresh.'); sync('Refreshing…'); Promise.all(MODS.map(function (m) { return m.start(true); })).then(function () { sync(''); if (!PAGE) go(); else nav(); }, function (e) { sync(''); toast('Could not refresh: ' + e.message, true); }); };
+  $('refresh').onclick = function () { if (PAGE) return toast('Go back first, then refresh.'); sync('Refreshing…');
+    Promise.all(MODS.map(function (m) { var p = guard(m, 'start', function () { return m.start(true); }, null); return Promise.resolve(p).then(function () { return null; }, function (e) { return e; }); }))
+      .then(function (errs) { sync(''); var e = errs.filter(function (x) { return x; })[0]; if (e && $('gate').hidden) toast('Could not refresh: ' + String(e && e.message || e), true); redraw(); }); };
 
   // ---- the modules: loaded from config.js, each with its own engine ----
   var M = window.MAITRI = { cfg: CFG, $: $, h: h, all: all, toast: toast, sync: sync, press: press, send: send, page: page, go: go, nav: nav, perf: perf,
@@ -90,8 +111,9 @@
     showPerf: function (on) { showPerf = !!on; },
     /** A module says what it is: { id, start(again) → Promise, tabs() → [{ id, name, title, icon, count(), draw() }], forget(),
      *  menu() → [{ label, run() }]: lines for the account sheet }. */
-    register: function (def) { var c = CFG.modules.filter(function (m) { return m.id === def.id; })[0]; if (!c) return; def.call = api(c.endpoint); MODS.push(def);
-      def.start(false).then(function () { if (!PAGE) go(); else nav(); }, function (e) { if (!$('gate').hidden) return; toast(e.message, true); if (!tabs().length) $('view').innerHTML = '<div class="card">' + h(e.message) + '</div>'; }); } };
+    register: function (def) { var c = def && typeof def === 'object' ? CFG.modules.filter(function (m) { return m.id === def.id; })[0] : null; if (!c) return; def.call = api(c.endpoint); MODS.push(def);
+      var p = guard(def, 'start', function () { return def.start(false); }, null);
+      Promise.resolve(p).then(redraw, function (e) { if (!$('gate').hidden) return; toast(String(e && e.message || e), true); redraw(); if (!tabs().length) $('view').innerHTML = '<div class="card">' + h(String(e && e.message || e)) + '</div>'; }); } };
   function boot() { started = true; CFG.modules.forEach(function (m) { var s = document.createElement('script'); s.src = m.src; s.onerror = function () { toast('A part of the app could not be loaded. Check the internet and open the app again.', true); }; document.head.appendChild(s); }); }
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').then(function (r) { swReg = r; }, function () { /* the app works without it; it only opens slower */ });

@@ -179,12 +179,16 @@ function listChange(a, v, action, sure) { (LISTBUSY[a] = LISTBUSY[a] || {})[v] =
 
 // ---- opening: what the phone remembers shows at once; the engine's answer follows ----
 var KEY = 'maitri.sy13';
+/** The person's own saves from the engine's inbox: the ones not applied are told once (the engine marks them shown), the waiting ones quietly. */
+function inboxNotes(rows) { var bad = (rows || []).filter(function (x) { return x.status !== 'waiting'; }), wait = (rows || []).filter(function (x) { return x.status === 'waiting'; });
+  if (bad.length) M.toast('NOT saved: ' + bad.map(function (x) { return x.call + ' ' + x.key + ' (' + x.at + '): ' + x.note; }).join(' · '), true);
+  else if (wait.length) M.toast(wait.length + (wait.length > 1 ? ' of your saves go' : ' of your saves goes') + ' into the master as soon as the check now running ends.'); }
 function remember() { try { localStorage.setItem(KEY, JSON.stringify({ email: S.email, can: S.can, lists: S.lists, labels: S.labels, attributes: S.attributes, ok_as_is: S.ok_as_is, owner: S.owner, names: IDX ? IDX.map(function (x) { return x.no; }) : null, stamp: IDX ? STAMP : '' })); } catch (e) { /* no room, or private mode */ } }
 var STAMP = '';   // the stamp of the design list the phone holds: the engine answers "same" to it and does not send the names again
 function setIndex(names, stamp) { IDX = names.map(function (n) { return { no: n, key: keyOf(n), s: loose(n) }; }); STAMP = stamp || ''; }
 function start(again) {
   if (!S) { try { var kept = JSON.parse(localStorage.getItem(KEY) || 'null'); if (kept && kept.can && kept.email === M.email()) { S = kept; S.check = []; S.diffs = []; S.rates = { waiting: [], erp: [], recent: [] }; S.notes = []; if (kept.names) setIndex(kept.names, kept.stamp); M.go(); M.sync('Refreshing\u2026'); } } catch (e) { /* nothing remembered */ } }
-  return call('appStart').then(function (s) { var had = IDX; S = s; M.showPerf(S.owner); M.sync(''); remember(); if ((S.notes || []).length) M.toast('For MIS: ' + S.notes.join(' \u00b7 '));
+  return call('appStart').then(function (s) { var had = IDX; S = s; M.showPerf(S.owner); M.sync(''); remember(); if ((S.notes || []).length) M.toast('For MIS: ' + S.notes.join(' \u00b7 ')); inboxNotes(S.inbox);
     call('appIndex', { have: IDX ? STAMP : '' }).then(function (x) { if (x.same) return; setIndex(x.names, x.stamp); remember(); if (!M.paged() && M.tab() === 'sy13.designs') { if ($('q') && $('q')._redraw && $('q').value) $('q')._redraw(); else DRAW.designs(); } },
       function (e) { if (!had) M.toast('The list of designs could not be loaded: ' + e.message, true); }); });
 }
