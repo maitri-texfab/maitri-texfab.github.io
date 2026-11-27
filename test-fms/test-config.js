@@ -11,7 +11,7 @@
 //   · Then the frame (shell.js, a byte-for-byte copy of the live one) is started, and Google's sign-in after it.
 (function () {
   var KEY = 'maitri.test-fms.exec';
-  var CLIENT_ID = '450946631995-tvnhp1ug4f1ut5ojombndkg6l11sodt4.apps.googleusercontent.com', VERSION = 'purchase.js 56b0ced5 · frame 9e7041b · built 26 Nov 26 19:30 IST', PIN = 'fc04768e8def3f582a9c076184015d1a503182152bd664f388d6aa2b42ad4304';
+  var CLIENT_ID = '450946631995-tvnhp1ug4f1ut5ojombndkg6l11sodt4.apps.googleusercontent.com', VERSION = 'purchase.js 56b0ced5 · frame 9e7041b · built 27 Nov 26 18:11 IST', PIN = '21bbc3e99317d6f43f8ca18f24a6297045dbb605ff86360bae03e210d5e12c84';
   var OK = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]{20,}\/exec$/;
   function get() { try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; } }
   function put(v) { try { localStorage.setItem(KEY, v); return true; } catch (e) { return false; } }
