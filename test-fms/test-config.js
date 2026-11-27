@@ -3,7 +3,7 @@
 //   · The TEST engine's /exec address is NOT in this file or anywhere on the public site. The page asks for it once
 //     and keeps it in this browser only (localStorage, key below), so it is never published.
 //   · Same sign-in as the live app (same Client ID, same web address), so no sign-in setup change is needed.
-//   · The page holds only the sha256 of the TEST address (S-289) and refuses any other address, so Tanmay's sign-in
+//   · The page holds only the sha256 of each TEST deployment's address (S-289; two deployments of the one TEST script) and refuses any other address, so Tanmay's sign-in
 //     token can only ever be sent to the TEST engine, never to an address pasted by mistake.
 //   · Only the purchase module is loaded. SY-13 is not, so no token is ever sent to SY-13 from here.
 //   · No service worker here: the live worker's cache cleanup would delete a second cache on this site, and a TEST
@@ -11,7 +11,7 @@
 //   · Then the frame (shell.js, a byte-for-byte copy of the live one) is started, and Google's sign-in after it.
 (function () {
   var KEY = 'maitri.test-fms.exec';
-  var CLIENT_ID = '450946631995-tvnhp1ug4f1ut5ojombndkg6l11sodt4.apps.googleusercontent.com', VERSION = 'purchase.js 56b0ced5 · frame 9e7041b · built 27 Nov 26 18:11 IST', PIN = '21bbc3e99317d6f43f8ca18f24a6297045dbb605ff86360bae03e210d5e12c84';
+  var CLIENT_ID = '450946631995-tvnhp1ug4f1ut5ojombndkg6l11sodt4.apps.googleusercontent.com', VERSION = 'purchase.js 56b0ced5 · frame 9e7041b · built 27 Nov 26 18:18 IST', PINS = '21bbc3e99317d6f43f8ca18f24a6297045dbb605ff86360bae03e210d5e12c84,fc04768e8def3f582a9c076184015d1a503182152bd664f388d6aa2b42ad4304'.split(',');
   var OK = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]{20,}\/exec$/;
   function get() { try { return localStorage.getItem(KEY) || ''; } catch (e) { return ''; } }
   function put(v) { try { localStorage.setItem(KEY, v); return true; } catch (e) { return false; } }
@@ -21,8 +21,8 @@
       return Array.prototype.map.call(new Uint8Array(b), function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
     });
   }
-  /** Resolves true only for the one TEST address: the right shape AND its sha256 equal to the pin. */
-  function pinned(v) { v = String(v || '').trim(); if (!OK.test(v)) return Promise.resolve(false); return digest(v).then(function (d) { return d === PIN; }, function () { return false; }); }
+  /** Resolves true only for a TEST address: the right shape AND its sha256 equal to the pin. */
+  function pinned(v) { v = String(v || '').trim(); if (!OK.test(v)) return Promise.resolve(false); return digest(v).then(function (d) { return PINS.indexOf(d) >= 0; }, function () { return false; }); }
   window.MAITRI_TEST = { KEY: KEY, pinned: pinned };
   document.title = 'TEST · purchase FMS';
 
